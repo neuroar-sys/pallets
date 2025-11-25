@@ -118,14 +118,12 @@ elif opcion == "Registrar Fabricante":
 elif opcion == "Publicar Producto":
     st.header("Publicar Nuevo Producto")
     
-    # Obtener fabricantes para seleccionar
     fabricantes = db.obtener_fabricantes()
     
     if not fabricantes:
         st.warning("Primero tenés que registrar un fabricante en la sección 'Registrar Fabricante'")
     else:
         with st.form("producto_form"):
-            # Seleccionar fabricante
             fabricante_options = {f"{fab[1]}": fab[0] for fab in fabricantes}
             fabricante_seleccionado = st.selectbox("Seleccioná tu taller*", list(fabricante_options.keys()))
             fabricante_id = fabricante_options[fabricante_seleccionado]
@@ -144,20 +142,22 @@ elif opcion == "Publicar Producto":
             descripcion = st.text_area("Descripción del producto", height=100,
                                      placeholder="Describe tu producto o generá una descripción con IA...")
             
-            # Generación automática de descripción con IA
-            if ia and st.button("Generar descripción con IA"):
+            # ✅ Botón de IA dentro del form → usar form_submit_button
+            generar_desc = st.form_submit_button("Generar descripción con IA")
+            if ia and generar_desc:
                 if nombre and categoria and materiales:
                     with st.spinner("Creando descripción atractiva..."):
                         info_producto = f"{nombre}, {categoria}, materiales: {materiales}"
                         descripcion_generada = ia.generar_descripcion(info_producto)
-                        st.text_area("Descripción generada", descripcion_generada, height=150, key="desc_generada")
+                        st.session_state['desc_generada'] = descripcion_generada
+                        st.text_area("Descripción generada", descripcion_generada, height=150, key="desc_generada_area")
                 else:
                     st.warning("Completá al menos nombre, categoría y materiales para generar una descripción")
             
-            if st.form_submit_button("Publicar Producto"):
+            publicar = st.form_submit_button("Publicar Producto")
+            if publicar:
                 if nombre and categoria and precio and fabricante_id:
-                    # Usar descripción generada si existe, sino la del usuario
-                    desc_final = st.session_state.get('desc_generada', descripcion) if 'desc_generada' in st.session_state else descripcion
+                    desc_final = st.session_state.get('desc_generada', descripcion)
                     
                     producto_id = db.agregar_producto({
                         'fabricante_id': fabricante_id,
@@ -170,7 +170,6 @@ elif opcion == "Publicar Producto":
                     })
                     st.success(f"¡Producto publicado exitosamente! ID: {producto_id}")
                     
-                    # Limpiar session state
                     if 'desc_generada' in st.session_state:
                         del st.session_state['desc_generada']
                 else:
@@ -193,7 +192,6 @@ elif opcion == "Buscar Productos":
                     col1, col2, col3 = st.columns([1, 2, 1])
                     
                     with col1:
-                        # Placeholder para imagen - luego podemos agregar imágenes reales
                         st.image("https://via.placeholder.com/150x150/4CAF50/white?text=Mueble", 
                                 width=150, caption=producto[2])
                     
@@ -201,9 +199,9 @@ elif opcion == "Buscar Productos":
                         st.subheader(producto[2])
                         st.write(f"**Categoría:** {producto[3]}")
                         st.write(f"**Descripción:** {producto[4]}")
-                        if producto[6]:  # materiales
+                        if producto[6]:
                             st.write(f"**Materiales:** {producto[6]}")
-                        if producto[7]:  # dimensiones
+                        if producto[7]:
                             st.write(f"**Dimensiones:** {producto[7]}")
                     
                     with col3:
@@ -211,14 +209,6 @@ elif opcion == "Buscar Productos":
                         st.write(f"**Fabricante:** {producto[9]}")
                         st.write(f"**{producto[10]}**")
                         
-                        # Botón de contacto
-                        if producto[11]:  # teléfono
+                        if producto[11]:
                             mensaje = f"Hola, me interesa el producto {producto[2]} que vi en Marketplace Pallets"
-                            url_whatsapp = f"https://wa.me/54{producto[11]}?text={mensaje}"
-                            st.link_button("Contactar por WhatsApp", url_whatsapp)
-    except Exception as e:
-        st.error(f"Error al cargar productos: {e}")
-
-# Footer
-st.markdown("---")
-st.markdown("**Muebles Ecológicos  Artesanos Locales  Economía Circular**")
+                            url_whatsapp = f"https://wa.me/

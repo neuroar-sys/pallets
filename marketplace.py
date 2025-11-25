@@ -1,24 +1,23 @@
 import sqlite3
 import google.generativeai as genai
-from datetime import datetime
 import threading
 
 class PalletsAI:
-    def __init__(self, api_key):
+    def __init__(self, api_key: str):
+        """Inicializa el modelo de IA con la API Key de Google Generative AI"""
         self.api_key = api_key
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel('gemini-pro')
     
-    def generar_descripcion(self, info_producto):
+    def generar_descripcion(self, info_producto: str) -> str:
         """Genera descripción de producto usando IA"""
         try:
-            # ✅ CORREGIDO: Usar comillas triples normales, NO escapadas
             prompt = f"""
             Eres un experto en marketing para muebles de pallets ecológicos.
             Crea una descripción atractiva y persuasiva para este producto:
-            
+
             Información del producto: {info_producto}
-            
+
             La descripción debe:
             - Ser breve (100-150 palabras)
             - Destacar los beneficios ecológicos
@@ -28,24 +27,26 @@ class PalletsAI:
             """
             
             response = self.model.generate_content(prompt)
-            return response.text
+            return response.text.strip() if response and response.text else "Descripción no generada."
         except Exception as e:
             return f"Descripción estándar para {info_producto}. (Error en IA: {str(e)})"
 
+
 class DatabaseManager:
     def __init__(self):
-        # ✅ CORREGIDO: Usar :memory: para base de datos en memoria
-        # Streamlit Cloud no persiste archivos en disco
+        """
+        Inicializa la base de datos en memoria.
+        ⚠️ Nota: En Streamlit Cloud los datos no persisten entre reinicios.
+        """
         self.conn = sqlite3.connect(':memory:', check_same_thread=False)
-        self.lock = threading.Lock()  # Para seguridad en entornos concurrentes
+        self.lock = threading.Lock()
         self.create_tables()
     
     def create_tables(self):
         """Crea las tablas necesarias en la base de datos"""
         with self.lock:
-            # Tabla de fabricantes
             self.conn.execute('''
-                CREATE TABLE fabricantes (
+                CREATE TABLE IF NOT EXISTS fabricantes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     nombre TEXT NOT NULL,
                     localidad TEXT NOT NULL,
@@ -57,9 +58,8 @@ class DatabaseManager:
                 )
             ''')
             
-            # Tabla de productos
             self.conn.execute('''
-                CREATE TABLE productos (
+                CREATE TABLE IF NOT EXISTS productos (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     fabricante_id INTEGER,
                     nombre TEXT NOT NULL,
@@ -75,7 +75,7 @@ class DatabaseManager:
             
             self.conn.commit()
     
-    def agregar_fabricante(self, fabricante_data):
+    def agregar_fabricante(self, fabricante_data: dict) -> int | None:
         """Agrega un nuevo fabricante a la base de datos"""
         try:
             with self.lock:
@@ -97,7 +97,7 @@ class DatabaseManager:
             print(f"Error agregando fabricante: {e}")
             return None
     
-    def obtener_fabricantes(self):
+    def obtener_fabricantes(self) -> list:
         """Obtiene todos los fabricantes registrados"""
         try:
             with self.lock:
@@ -108,7 +108,7 @@ class DatabaseManager:
             print(f"Error obteniendo fabricantes: {e}")
             return []
     
-    def agregar_producto(self, producto_data):
+    def agregar_producto(self, producto_data: dict) -> int | None:
         """Agrega un nuevo producto a la base de datos"""
         try:
             with self.lock:
@@ -131,7 +131,7 @@ class DatabaseManager:
             print(f"Error agregando producto: {e}")
             return None
     
-    def obtener_productos(self):
+    def obtener_productos(self) -> list:
         """Obtiene todos los productos con información del fabricante"""
         try:
             with self.lock:
@@ -147,7 +147,8 @@ class DatabaseManager:
             print(f"Error obteniendo productos: {e}")
             return []
 
-# Para pruebas locales (opcional)
+
+# Para pruebas locales
 if __name__ == "__main__":
     db = DatabaseManager()
     print("Base de datos inicializada correctamente")
