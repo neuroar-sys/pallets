@@ -1,4 +1,7 @@
-﻿[server]
+﻿# 2. Crear la configuración mínima en config.toml
+@"
+[server]
 headless = true
 address = "0.0.0.0"
 port = 8080
+"@ | Out-File -FilePath ".streamlit/config.toml" -Encoding UTF8
