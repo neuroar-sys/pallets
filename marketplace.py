@@ -1,128 +1,143 @@
-﻿import sqlite3
-import json
-from datetime import datetime
+import sqlite3
 import google.generativeai as genai
-import os
+from datetime import datetime
+
+class PalletsAI:
+    def __init__(self, api_key):
+        self.api_key = api_key
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel('gemini-pro')
+    
+    def generar_descripcion(self, info_producto):
+        """Genera descripción de producto usando IA"""
+        try:
+            prompt = f"""
+            Eres un experto en marketing para muebles de pallets ecológicos.
+            Crea una descripción atractiva y persuasiva para este producto:
+            
+            Información del producto: {info_producto}
+            
+            La descripción debe:
+            - Ser breve (100-150 palabras)
+            - Destacar los beneficios ecológicos
+            - Incluir características únicas
+            - Ser atractiva para compradores
+            - Usar un tono cálido y profesional
+            """
+            
+            response = self.model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            return f"Descripción estándar para {info_producto}. (Error en IA: {str(e)})"
 
 class DatabaseManager:
     def __init__(self):
         self.conn = sqlite3.connect('pallets_marketplace.db', check_same_thread=False)
-        self.init_database()
+        self.create_tables()
     
-    def init_database(self):
-        cursor = self.conn.cursor()
-        
-        # Tabla fabricantes
-        cursor.execute('''
+    def create_tables(self):
+        """Crea las tablas necesarias en la base de datos"""
+        # Tabla de fabricantes
+        self.conn.execute('''
             CREATE TABLE IF NOT EXISTS fabricantes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nombre TEXT NOT NULL,
                 localidad TEXT NOT NULL,
-                telefono TEXT,
+                telefono TEXT NOT NULL,
                 especialidad TEXT,
-                experiencia TEXT,
+                experiencia INTEGER,
                 descripcion TEXT,
-                fecha_registro DATE
+                fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
-        # Tabla productos
-        cursor.execute('''
+        # Tabla de productos
+        self.conn.execute('''
             CREATE TABLE IF NOT EXISTS productos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 fabricante_id INTEGER,
                 nombre TEXT NOT NULL,
-                categoria TEXT,
+                categoria TEXT NOT NULL,
                 descripcion TEXT,
-                precio INTEGER,
+                precio REAL NOT NULL,
                 materiales TEXT,
                 dimensiones TEXT,
-                estado TEXT DEFAULT 'disponible',
-                fecha_publicacion DATE,
+                fecha_publicacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (fabricante_id) REFERENCES fabricantes (id)
             )
         ''')
         
         self.conn.commit()
     
-    def agregar_fabricante(self, datos):
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            INSERT INTO fabricantes (nombre, localidad, telefono, especialidad, experiencia, descripcion, fecha_registro)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            datos['nombre'],
-            datos['localidad'],
-            datos.get('telefono', ''),
-            datos.get('especialidad', ''),
-            datos.get('experiencia', ''),
-            datos.get('descripcion', ''),
-            datetime.now().date()
-        ))
-        fabricante_id = cursor.lastrowid
-        self.conn.commit()
-        return fabricante_id
+    def agregar_fabricante(self, fabricante_data):
+        """Agrega un nuevo fabricante a la base de datos"""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('''
+                INSERT INTO fabricantes (nombre, localidad, telefono, especialidad, experiencia, descripcion)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                fabricante_data['nombre'],
+                fabricante_data['localidad'],
+                fabricante_data['telefono'],
+                fabricante_data.get('especialidad', ''),
+                fabricante_data.get('experiencia', 0),
+                fabricante_data.get('descripcion', '')
+            ))
+            self.conn.commit()
+            return cursor.lastrowid
+        except Exception as e:
+            print(f"Error agregando fabricante: {e}")
+            return None
     
     def obtener_fabricantes(self):
-        cursor = self.conn.cursor()
-        cursor.execute('SELECT * FROM fabricantes')
-        return cursor.fetchall()
+        """Obtiene todos los fabricantes registrados"""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('SELECT * FROM fabricantes ORDER BY fecha_registro DESC')
+            return cursor.fetchall()
+        except Exception as e:
+            print(f"Error obteniendo fabricantes: {e}")
+            return []
     
-    def agregar_producto(self, datos):
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            INSERT INTO productos (fabricante_id, nombre, categoria, descripcion, precio, materiales, dimensiones, fecha_publicacion)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            datos['fabricante_id'],
-            datos['nombre'],
-            datos['categoria'],
-            datos.get('descripcion', ''),
-            datos['precio'],
-            datos.get('materiales', ''),
-            datos.get('dimensiones', ''),
-            datetime.now().date()
-        ))
-        producto_id = cursor.lastrowid
-        self.conn.commit()
-        return producto_id
+    def agregar_producto(self, producto_data):
+        """Agrega un nuevo producto a la base de datos"""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('''
+                INSERT INTO productos (fabricante_id, nombre, categoria, descripcion, precio, materiales, dimensiones)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                producto_data['fabricante_id'],
+                producto_data['nombre'],
+                producto_data['categoria'],
+                producto_data.get('descripcion', ''),
+                producto_data['precio'],
+                producto_data.get('materiales', ''),
+                producto_data.get('dimensiones', '')
+            ))
+            self.conn.commit()
+            return cursor.lastrowid
+        except Exception as e:
+            print(f"Error agregando producto: {e}")
+            return None
     
     def obtener_productos(self):
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            SELECT p.*, f.nombre as fabricante_nombre, f.localidad, f.telefono
-            FROM productos p
-            JOIN fabricantes f ON p.fabricante_id = f.id
-        ''')
-        return cursor.fetchall()
-
-class PalletsAI:
-    def __init__(self, api_key):
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-pro')
-        self.db = DatabaseManager()
-    
-    def generar_descripcion(self, producto_info):
-        prompt = f\"\"\"Eres un experto en marketing para muebles de pallets reciclados.
-        
-        Información del producto: {producto_info}
-        
-        Genera una descripción comercial atractiva que:
-        - Destaque que es ecológico y sustentable
-        - Mencione que es artesanal y único
-        - Sea cálida y persuasiva
-        - Máximo 100 palabras
-        
-        Responde SOLO con la descripción, sin títulos adicionales.\"\"\"
+        """Obtiene todos los productos con información del fabricante"""
         try:
-            response = self.model.generate_content(prompt)
-            return response.text
+            cursor = self.conn.cursor()
+            cursor.execute('''
+                SELECT p.*, f.nombre as fabricante_nombre, f.localidad, f.telefono
+                FROM productos p
+                LEFT JOIN fabricantes f ON p.fabricante_id = f.id
+                ORDER BY p.fecha_publicacion DESC
+            ''')
+            return cursor.fetchall()
         except Exception as e:
-            return f\"Descripción del producto: {producto_info}. Hecho artesanalmente con pallets reciclados. \"
+            print(f"Error obteniendo productos: {e}")
+            return []
 
-# Prueba rápida de la base de datos
-if __name__ == \"__main__\":
+# Para pruebas locales
+if __name__ == "__main__":
     db = DatabaseManager()
-    print(\" Base de datos inicializada correctamente\")
-    print(\" Fabricantes:\", len(db.obtener_fabricantes()))
-    print(\" Productos:\", len(db.obtener_productos()))
+    print("Base de datos inicializada correctamente")
