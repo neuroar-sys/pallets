@@ -4,9 +4,9 @@ import os
 
 # Configuración de la página
 st.set_page_config(
-    page_title=\"Marketplace Muebles Pallets BA\",
-    page_icon=\"\",
-    layout=\"wide\"
+    page_title="Marketplace Muebles Pallets BA",
+    page_icon="🛋️",
+    layout="wide"
 )
 
 # Inicializar IA y Base de Datos
