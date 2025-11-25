@@ -142,7 +142,6 @@ elif opcion == "Publicar Producto":
             descripcion = st.text_area("Descripción del producto", height=100,
                                      placeholder="Describe tu producto o generá una descripción con IA...")
             
-            # ✅ Botón de IA dentro del form → usar form_submit_button
             generar_desc = st.form_submit_button("Generar descripción con IA")
             if ia and generar_desc:
                 if nombre and categoria and materiales:
@@ -211,4 +210,11 @@ elif opcion == "Buscar Productos":
                         
                         if producto[11]:
                             mensaje = f"Hola, me interesa el producto {producto[2]} que vi en Marketplace Pallets"
-                            url_whatsapp = f"https://wa.me/
+                            url_whatsapp = f"https://wa.me/54{producto[11]}?text={mensaje}"
+                            st.link_button("Contactar por WhatsApp", url_whatsapp)
+    except Exception as e:
+        st.error(f"Error al cargar productos: {e}")
+
+# Footer
+st.markdown("---")
+st.markdown("**Muebles Ecológicos  Artesanos Locales  Economía Circular**")
