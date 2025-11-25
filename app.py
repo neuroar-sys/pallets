@@ -9,6 +9,35 @@ st.set_page_config(
     layout="wide"
 )
 
+# Inyectar estilos personalizados (cards, botones, tipografía)
+st.markdown("""
+    <style>
+    .stApp { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    .card {
+        background-color: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+        border: 1px solid #f0f0f0;
+    }
+    .card h3 { margin-top: 0; color: #2E7D32; }
+    .muted { color: #666; font-size: 0.95rem; }
+    div.stButton > button:first-child {
+        background-color: #4CAF50;
+        color: white;
+        border-radius: 8px;
+        padding: 0.6em 1.2em;
+        font-weight: 600;
+        border: none;
+    }
+    div.stButton > button:hover { background-color: #388E3C; }
+    .price { font-size: 1.2rem; font-weight: 700; color: #1b5e20; }
+    .kpi { background: #ffffff; border-radius: 10px; padding: 10px 14px; border: 1px solid #eee; }
+    .section-divider { margin: 24px 0; border-bottom: 1px solid #eaeaea; }
+    </style>
+""", unsafe_allow_html=True)
+
 # Inicializar IA y Base de Datos
 @st.cache_resource
 def init_ia():
@@ -39,6 +68,7 @@ opcion = st.sidebar.radio("Menú principal:", [
     "Buscar Productos"
 ])
 
+# Inicio
 if opcion == "Inicio":
     st.header("Bienvenido al Marketplace")
     
@@ -46,41 +76,48 @@ if opcion == "Inicio":
     
     with col1:
         st.subheader("Para Clientes")
-        st.write("Encuentra muebles únicos de pallets fabricados por artesanos locales")
+        st.write("Encuentra muebles únicos de pallets fabricados por artesanos locales.")
         
         consulta = st.text_input("¿Qué mueble estás buscando?", 
                                placeholder="Ej: Mesa de living para balcón pequeño...")
         
         if st.button("Buscar recomendaciones"):
             if consulta:
-                st.info("Función de búsqueda inteligente en desarrollo...")
-                st.write("Por ahora puedes explorar todos los productos en 'Buscar Productos'")
+                st.info("Búsqueda inteligente en desarrollo.")
+                st.write("Por ahora puedes explorar todos los productos en 'Buscar Productos'.")
             else:
-                st.warning("Por favor, ingresa una búsqueda")
+                st.warning("Por favor, ingresa una búsqueda.")
     
     with col2:
         st.subheader("Para Fabricantes")
-        st.write("Registra tu taller y muestra tus productos a toda la comunidad")
+        st.write("Registra tu taller y muestra tus productos a toda la comunidad.")
         
         if st.button("Registrar mi taller"):
             st.session_state.registrar_fabricante = True
             st.rerun()
         
-        st.subheader("Estadísticas Rápidas")
+        st.subheader("Estadísticas rápidas")
         try:
             fabricantes = db.obtener_fabricantes()
             productos = db.obtener_productos()
-            st.metric("Fabricantes Registrados", len(fabricantes))
-            st.metric("Productos Publicados", len(productos))
-        except:
-            st.metric("Fabricantes Registrados", 0)
-            st.metric("Productos Publicados", 0)
+            k1, k2 = st.columns(2)
+            with k1:
+                st.metric("Fabricantes Registrados", len(fabricantes))
+            with k2:
+                st.metric("Productos Publicados", len(productos))
+        except Exception:
+            k1, k2 = st.columns(2)
+            with k1:
+                st.metric("Fabricantes Registrados", 0)
+            with k2:
+                st.metric("Productos Publicados", 0)
 
+# Registrar Fabricante
 elif opcion == "Registrar Fabricante":
     st.header("Únete como Fabricante")
     
     with st.form("registro_fabricante"):
-        st.subheader("Información del Taller")
+        st.subheader("Información del taller")
         
         col1, col2 = st.columns(2)
         with col1:
@@ -110,18 +147,22 @@ elif opcion == "Registrar Fabricante":
                     'experiencia': str(experiencia),
                     'descripcion': descripcion
                 })
-                st.success(f"¡Registro exitoso! Tu ID de fabricante es: {fabricante_id}")
-                st.info("Ahora podés publicar tus productos en la sección 'Publicar Producto'")
+                if fabricante_id:
+                    st.success(f"¡Registro exitoso! Tu ID de fabricante es: {fabricante_id}")
+                    st.info("Ahora podés publicar tus productos en la sección 'Publicar Producto'.")
+                else:
+                    st.error("No se pudo registrar el fabricante. Intenta nuevamente.")
             else:
                 st.error("Por favor, completá los campos obligatorios (*)")
 
+# Publicar Producto
 elif opcion == "Publicar Producto":
     st.header("Publicar Nuevo Producto")
     
     fabricantes = db.obtener_fabricantes()
     
     if not fabricantes:
-        st.warning("Primero tenés que registrar un fabricante en la sección 'Registrar Fabricante'")
+        st.warning("Primero tenés que registrar un fabricante en la sección 'Registrar Fabricante'.")
     else:
         with st.form("producto_form"):
             fabricante_options = {f"{fab[1]}": fab[0] for fab in fabricantes}
@@ -151,7 +192,7 @@ elif opcion == "Publicar Producto":
                         st.session_state['desc_generada'] = descripcion_generada
                         st.text_area("Descripción generada", descripcion_generada, height=150, key="desc_generada_area")
                 else:
-                    st.warning("Completá al menos nombre, categoría y materiales para generar una descripción")
+                    st.warning("Completá al menos nombre, categoría y materiales para generar una descripción.")
             
             publicar = st.form_submit_button("Publicar Producto")
             if publicar:
@@ -167,13 +208,16 @@ elif opcion == "Publicar Producto":
                         'materiales': materiales,
                         'dimensiones': dimensiones
                     })
-                    st.success(f"¡Producto publicado exitosamente! ID: {producto_id}")
-                    
-                    if 'desc_generada' in st.session_state:
-                        del st.session_state['desc_generada']
+                    if producto_id:
+                        st.success(f"¡Producto publicado exitosamente! ID: {producto_id}")
+                        if 'desc_generada' in st.session_state:
+                            del st.session_state['desc_generada']
+                    else:
+                        st.error("No se pudo publicar el producto. Intenta nuevamente.")
                 else:
                     st.error("Por favor, completá los campos obligatorios (*)")
 
+# Buscar Productos (cards con imágenes)
 elif opcion == "Buscar Productos":
     st.header("Catálogo de Productos")
     
@@ -186,35 +230,37 @@ elif opcion == "Buscar Productos":
             st.success(f"Encontramos {len(productos)} productos disponibles")
             
             for producto in productos:
-                with st.container():
-                    st.markdown("---")
-                    col1, col2, col3 = st.columns([1, 2, 1])
+                st.markdown('<div class="card">', unsafe_allow_html=True)
+                col1, col2 = st.columns([1, 2])
+                
+                with col1:
+                    # Si tienes imagen_url en DB, úsala. Fallback a placeholder profesional.
+                    # Nota: En la estructura actual, no hay columna imagen_url. Se usa placeholder.
+                    imagen_url = "https://images.unsplash.com/photo-1519710881460-8fbc6d10c872?q=80&w=600&auto=format&fit=crop"
+                    st.image(imagen_url, width=220, caption=producto[2])
+                
+                with col2:
+                    st.subheader(producto[2])
+                    st.write(f"**Categoría:** {producto[3]}")
+                    st.write(f"**Descripción:** {producto[4]}")
+                    if producto[6]:
+                        st.write(f"**Materiales:** {producto[6]}")
+                    if producto[7]:
+                        st.write(f"**Dimensiones:** {producto[7]}")
+                    st.write(f"**Precio:** ${producto[5]}")
+                    st.write(f"**Fabricante:** {producto[9]} ({producto[10]})")
                     
-                    with col1:
-                        st.image("https://via.placeholder.com/150x150/4CAF50/white?text=Mueble", 
-                                width=150, caption=producto[2])
-                    
-                    with col2:
-                        st.subheader(producto[2])
-                        st.write(f"**Categoría:** {producto[3]}")
-                        st.write(f"**Descripción:** {producto[4]}")
-                        if producto[6]:
-                            st.write(f"**Materiales:** {producto[6]}")
-                        if producto[7]:
-                            st.write(f"**Dimensiones:** {producto[7]}")
-                    
-                    with col3:
-                        st.write(f"**${producto[5]}**")
-                        st.write(f"**Fabricante:** {producto[9]}")
-                        st.write(f"**{producto[10]}**")
-                        
-                        if producto[11]:
-                            mensaje = f"Hola, me interesa el producto {producto[2]} que vi en Marketplace Pallets"
-                            url_whatsapp = f"https://wa.me/54{producto[11]}?text={mensaje}"
-                            st.link_button("Contactar por WhatsApp", url_whatsapp)
+                    if len(producto) > 11 and producto[11]:
+                        mensaje = f"Hola, me interesa el producto {producto[2]} que vi en Marketplace Pallets"
+                        url_whatsapp = f"https://wa.me/54{producto[11]}?text={mensaje}"
+                        st.link_button("📲 Contactar por WhatsApp", url_whatsapp)
+                    else:
+                        st.caption("Teléfono no disponible.")
+                
+                st.markdown('</div>', unsafe_allow_html=True)
     except Exception as e:
         st.error(f"Error al cargar productos: {e}")
 
 # Footer
-st.markdown("---")
-st.markdown("**Muebles Ecológicos  Artesanos Locales  Economía Circular**")
+st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+st.markdown("**Muebles Ecológicos · Artesanos Locales · Economía Circular**")
